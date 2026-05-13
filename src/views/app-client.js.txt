@@ -1,0 +1,287 @@
+(function() {
+'use strict';
+
+// ====== UTILITIES ======
+const $ = (sel, ctx) => (ctx || document).querySelector(sel);
+const $$ = (sel, ctx) => [...(ctx || document).querySelectorAll(sel)];
+const MS_PER_DAY = 86400000;
+
+const currencySymbols = { CNY: '¥', USD: '$', HKD: 'HK$', TWD: 'NT$', JPY: '¥', EUR: '€', GBP: '£', KRW: '₩', TRY: '₺' };
+function getSymbol(c) { return currencySymbols[c] || '¥'; }
+
+function showToast(message, type, duration) {
+  type = type || 'success'; duration = duration || 3000;
+  var container = $('#toast-container');
+  var toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  var icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+  toast.innerHTML = '<div class="flex items-center"><i class="fas fa-' + icon + ' mr-2"></i><span>' + message + '</span></div>';
+  container.appendChild(toast);
+  setTimeout(function() { toast.classList.add('show'); }, 100);
+  setTimeout(function() { toast.classList.remove('show'); setTimeout(function() { if (container.contains(toast)) container.removeChild(toast); }, 300); }, duration);
+}
+
+async function apiFetch(path, options) {
+  options = options || {};
+  options.headers = options.headers || {};
+  if (!options.headers['Content-Type'] && options.body && typeof options.body === 'string') {
+    options.headers['Content-Type'] = 'application/json';
+  }
+  var resp = await fetch(path, options);
+  if (resp.status === 401) { App.logout(); throw new Error('unauthorized'); }
+  return resp;
+}
+
+async function apiGet(path) { return (await apiFetch(path)).json(); }
+async function apiPost(path, body) { return (await apiFetch(path, { method: 'POST', body: JSON.stringify(body) })).json(); }
+async function apiPut(path, body) { return (await apiFetch(path, { method: 'PUT', body: JSON.stringify(body) })).json(); }
+async function apiDelete(path) { return (await apiFetch(path, { method: 'DELETE' })).json(); }
+
+// ====== AUTH ======
+var App = {
+  user: null,
+  currentView: null,
+  init: function() {
+    this.checkAuth().then(function(authed) {
+      if (authed) { App.navigate(location.hash || '#dashboard'); }
+      else { App.navigate('#login'); }
+    });
+    window.addEventListener('hashchange', function() { App.handleRoute(); });
+  },
+  checkAuth: async function() {
+    try {
+      var resp = await fetch('/api/config');
+      if (resp.status === 401) return false;
+      var data = await resp.json();
+      if (data && data.ADMIN_USERNAME) { App.user = data; return true; }
+      return false;
+    } catch(e) { return false; }
+  },
+  logout: function() {
+    fetch('/api/logout').then(function() {
+      App.user = null;
+      App.navigate('#login');
+    });
+  },
+  navigate: function(hash) {
+    location.hash = hash;
+    this.handleRoute();
+  },
+  handleRoute: function() {
+    var hash = location.hash || '#login';
+    if (!App.user && hash !== '#login') { location.hash = '#login'; hash = '#login'; }
+    if (App.user && hash === '#login') { location.hash = '#dashboard'; hash = '#dashboard'; }
+    renderNav();
+    var view = hash.slice(1);
+    if (App.currentView === view) return;
+    App.currentView = view;
+    var container = $('#app-view'); container.innerHTML = '';
+    switch(view) {
+      case 'login': renderLogin(container); break;
+      case 'dashboard': renderDashboard(container); break;
+      case 'list': renderSubscriptionList(container); break;
+      case 'config': renderConfig(container); break;
+      default: App.navigate('#dashboard');
+    }
+  }
+};
+
+// ====== NAVIGATION ======
+function renderNav() {
+  var nav = $('#app-nav');
+  if (!App.user) { nav.innerHTML = ''; return; }
+  var current = (location.hash || '#dashboard').slice(1);
+  var items = [
+    { id: 'dashboard', icon: 'fa-chart-line', label: '仪表盘', href: '#dashboard' },
+    { id: 'list', icon: 'fa-list', label: '订阅列表', href: '#list' },
+    { id: 'config', icon: 'fa-cog', label: '系统配置', href: '#config' }
+  ];
+  nav.innerHTML = '<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><div class="flex justify-between h-16">' +
+    '<div class="flex items-center shrink-0"><div class="flex items-center"><svg class="w-6 h-6 text-indigo-600 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="8 14 11 17 16 12"/></svg><span class="font-bold text-xl text-gray-800">订阅管理系统</span></div><span id="systemTimeDisplay" class="ml-4 text-base text-indigo-600 font-normal hidden md:block pt-1"></span></div>' +
+    '<div class="hidden md:flex items-center space-x-4 ml-auto">' +
+    items.map(function(item) {
+      var active = current === item.id;
+      return '<a href="' + item.href + '" class="nav-link ' + (active ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-700 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300') + ' px-3 py-2 rounded-md text-sm font-medium transition"><i class="fas ' + item.icon + ' mr-1"></i>' + item.label + '</a>';
+    }).join('') +
+    '<a href="#" onclick="event.preventDefault();App.logout()" class="text-gray-700 hover:text-red-600 border-b-2 border-transparent hover:border-red-300 px-3 py-2 rounded-md text-sm font-medium transition"><i class="fas fa-sign-out-alt mr-1"></i>退出登录</a>' +
+    '</div>' +
+    '<div class="flex items-center md:hidden ml-auto"><button id="mobile-menu-btn" type="button" aria-expanded="false" aria-label="切换导航菜单" class="text-gray-600 hover:text-indigo-600 focus:outline-none p-2 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors"><i class="fas fa-bars text-xl"></i></button></div>' +
+    '</div></div>' +
+    '<div id="mobile-menu" class="hidden md:hidden bg-white border-t border-b border-gray-200 w-full"><div class="px-4 pt-2 pb-4 space-y-2"><div id="mobileTimeDisplay" class="px-3 py-2 text-xs text-indigo-600 text-right border-b border-gray-100 mb-2"></div>' +
+    items.map(function(item) {
+      return '<a href="' + item.href + '" class="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 active:bg-indigo-100 transition-colors"><i class="fas ' + item.icon + ' w-6 text-center mr-2"></i>' + item.label + '</a>';
+    }).join('') +
+    '<a href="#" onclick="event.preventDefault();App.logout()" class="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 active:bg-red-100 transition-colors"><i class="fas fa-sign-out-alt w-6 text-center mr-2"></i>退出登录</a>' +
+    '</div></div>';
+  initMobileMenu();
+  showSystemTime();
+}
+
+function initMobileMenu() {
+  var btn = $('#mobile-menu-btn');
+  var menu = $('#mobile-menu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', function() { menu.classList.toggle('hidden'); });
+  $$('a', menu).forEach(function(link) { link.addEventListener('click', function() { menu.classList.add('hidden'); }); });
+}
+
+function showSystemTime() {
+  var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  function update() {
+    var now = new Date();
+    var str = now.toLocaleString('zh-CN', { timeZone: tz, year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit' });
+    var el = $('#systemTimeDisplay'); if (el) el.textContent = str + ' ' + tz;
+    var mel = $('#mobileTimeDisplay'); if (mel) mel.textContent = str + ' ' + tz;
+  }
+  update(); setInterval(update, 1000);
+}
+
+// ====== LOGIN VIEW ======
+function renderLogin(container) {
+  document.body.className = 'login-container flex items-center justify-center';
+  container.innerHTML = '<div class="login-box p-8 rounded-xl w-full max-w-md">' +
+    '<div class="text-center mb-8"><svg class="w-10 h-10 mx-auto text-indigo-600 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="8 14 11 17 16 12"/></svg><h1 class="text-2xl font-bold text-gray-800">订阅管理系统</h1><p class="text-gray-600 mt-2">登录管理您的订阅提醒</p></div>' +
+    '<form id="loginForm" class="space-y-6">' +
+    '<div><label for="username" class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-user mr-2"></i>用户名</label><input type="text" id="username" name="username" required class="input-field w-full px-4 py-3 rounded-lg text-gray-700 focus:outline-none"></div>' +
+    '<div><label for="password" class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-lock mr-2"></i>密码</label><input type="password" id="password" name="password" required class="input-field w-full px-4 py-3 rounded-lg text-gray-700 focus:outline-none"></div>' +
+    '<button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white w-full py-3 rounded-lg font-medium focus:outline-none"><i class="fas fa-sign-in-alt mr-2"></i>登录</button>' +
+    '<div id="errorMsg" class="text-red-500 text-center"></div></form></div>';
+  $('#loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var btn = e.target.querySelector('button');
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>登录中...'; btn.disabled = true;
+    try {
+      var result = await apiPost('/api/login', { username: $('#username').value, password: $('#password').value });
+      if (result.success) { App.user = true; App.navigate('#dashboard'); }
+      else { $('#errorMsg').textContent = result.message || '用户名或密码错误'; btn.innerHTML = orig; btn.disabled = false; }
+    } catch(err) { $('#errorMsg').textContent = '发生错误，请稍后再试'; btn.innerHTML = orig; btn.disabled = false; }
+  });
+}
+
+// ====== DASHBOARD VIEW ======
+function renderDashboard(container) {
+  document.body.className = 'bg-gray-50';
+  container.innerHTML = '<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">' +
+    '<div class="mb-6"><h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-chart-line mr-2" aria-hidden="true"></i>仪表板</h2><p class="text-sm text-gray-500 mt-1">订阅费用和活动概览（统计金额已折合为 CNY）</p></div>' +
+    '<div class="bg-white rounded-lg shadow-md overflow-hidden mb-6"><div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"><div class="flex items-center gap-2"><i class="fas fa-history text-indigo-500" aria-hidden="true"></i><h3 class="text-lg font-medium text-gray-900">自动提醒任务状态</h3></div><span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">Cron 可观测性</span></div><div class="p-6" id="schedulerStatus"><div class="loading-skeleton"></div></div></div>' +
+    '<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6" id="statsGrid"><div class="loading-skeleton"></div><div class="loading-skeleton"></div><div class="loading-skeleton"></div><div class="loading-skeleton"></div></div>' +
+    '<div class="bg-white rounded-lg shadow-md overflow-hidden mb-6"><div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"><div class="flex items-center gap-2"><i class="fas fa-calendar-check text-blue-500" aria-hidden="true"></i><h3 class="text-lg font-medium text-gray-900">最近支付</h3></div><span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">过去7天</span></div><div class="p-6" id="recentPayments"><div class="loading-skeleton"></div></div></div>' +
+    '<div class="bg-white rounded-lg shadow-md overflow-hidden mb-6"><div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"><div class="flex items-center gap-2"><i class="fas fa-clock text-yellow-500" aria-hidden="true"></i><h3 class="text-lg font-medium text-gray-900">即将续费</h3></div><span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">未来7天</span></div><div class="p-6" id="upcomingRenewals"><div class="loading-skeleton"></div></div></div>' +
+    '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">' +
+    '<div class="bg-white rounded-lg shadow-md overflow-hidden"><div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"><div class="flex items-center gap-2"><i class="fas fa-chart-bar text-purple-500" aria-hidden="true"></i><h3 class="text-lg font-medium text-gray-900">按类型支出排行</h3></div><span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">年度统计 (折合CNY)</span></div><div class="p-6" id="expenseByType"><div class="loading-skeleton"></div></div></div>' +
+    '<div class="bg-white rounded-lg shadow-md overflow-hidden"><div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"><div class="flex items-center gap-2"><i class="fas fa-folder text-green-500" aria-hidden="true"></i><h3 class="text-lg font-medium text-gray-900">按分类支出统计</h3></div><span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">年度统计 (折合CNY)</span></div><div class="p-6" id="expenseByCategory"><div class="loading-skeleton"></div></div></div></div>' +
+    '<div class="bg-white rounded-lg shadow-md overflow-hidden mb-6"><div class="px-6 py-4 border-b border-gray-200"><div class="flex items-center gap-2"><i class="fas fa-stream text-indigo-500" aria-hidden="true"></i><h3 class="text-lg font-medium text-gray-900">自动提醒任务历史（最近10次）</h3></div></div><div class="p-6" id="schedulerStatusHistory"><div class="loading-skeleton"></div></div></div>' +
+    '</div>';
+  loadDashboard();
+  setInterval(loadDashboard, 60000);
+}
+
+async function loadDashboard() {
+  try {
+    var d = await apiGet('/api/dashboard/stats');
+    if (!d.success) throw new Error(d.message || '加载失败');
+    var data = d.data;
+
+    // Scheduler status
+    var ssEl = $('#schedulerStatus');
+    if (ssEl) {
+      var status = data.schedulerStatus;
+      if (!status) { ssEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-clock text-4xl mb-3 opacity-50" aria-hidden="true"></i><p class="text-sm">暂无定时任务执行记录（等待下一次 Cron）</p></div>'; }
+      else {
+        var sendResult = status.sendResult || {};
+        var runAt = status.lastRunAt ? new Date(status.lastRunAt).toLocaleString('zh-CN') : '未知';
+        var configuredHours = Array.isArray(status.configuredHours) && status.configuredHours.length > 0 ? status.configuredHours.join(', ') : '全部时段';
+        var sentBadge = status.sent ? '<span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">本次有发送</span>' : '<span class="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-700">本次未发送</span>';
+        ssEl.innerHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">' +
+          '<div class="bg-gray-50 rounded-md p-3"><div class="text-gray-500">最近执行时间</div><div class="text-gray-900 font-medium mt-1">' + runAt + '</div></div>' +
+          '<div class="bg-gray-50 rounded-md p-3"><div class="text-gray-500">状态</div><div class="mt-1">' + sentBadge + '</div></div>' +
+          '<div class="bg-gray-50 rounded-md p-3"><div class="text-gray-500">当前小时 / 配置时段（UTC）</div><div class="text-gray-900 font-medium mt-1">' + (status.currentHour||'--') + ' / ' + configuredHours + '</div></div>' +
+          '<div class="bg-gray-50 rounded-md p-3"><div class="text-gray-500">检查与命中</div><div class="text-gray-900 font-medium mt-1">检查 ' + (status.checkedSubscriptions||0) + ' 条，命中 ' + (status.expiringMatched||0) + ' 条</div></div>' +
+          '<div class="bg-gray-50 rounded-md p-3 md:col-span-2"><div class="text-gray-500">发送结果</div><div class="text-gray-900 font-medium mt-1">尝试 ' + (sendResult.attempted||0) + ' 个渠道，成功 ' + (sendResult.successCount||0) + '，失败 ' + (sendResult.failedCount||0) + '，去重跳过 ' + (status.dedupeSkipped||0) + '</div><div class="text-xs text-gray-500 mt-1">' + (status.reason||'暂无详情') + '</div></div></div>';
+      }
+    }
+
+    // Stats grid
+    $('#statsGrid').innerHTML =
+      '<div class="stat-card"><div class="stat-card-header">本月已付 (折合CNY)</div><div class="stat-card-value">¥' + data.monthlyExpense.amount.toFixed(2) + '</div><div class="stat-card-subtitle">本月实际支付金额</div><div class="stat-card-trend ' + data.monthlyExpense.trendDirection + '"><i class="fas fa-arrow-' + (data.monthlyExpense.trendDirection==='up'?'up':data.monthlyExpense.trendDirection==='down'?'down':'right') + '" aria-hidden="true"></i>' + data.monthlyExpense.trend + '%</div></div>' +
+      '<div class="stat-card"><div class="stat-card-header">本年已付 (折合CNY)</div><div class="stat-card-value">¥' + data.yearlyExpense.amount.toFixed(2) + '</div><div class="stat-card-subtitle">月均支出: ¥' + data.yearlyExpense.monthlyAverage.toFixed(2) + '</div></div>' +
+      '<div class="stat-card"><div class="stat-card-header">年化成本 (折合CNY)</div><div class="stat-card-value">¥' + data.annualizedExpense.amount.toFixed(2) + '</div><div class="stat-card-subtitle">折合月均: ¥' + data.annualizedExpense.monthlyEquivalent.toFixed(2) + '</div></div>' +
+      '<div class="stat-card"><div class="stat-card-header">活跃订阅</div><div class="stat-card-value">' + data.activeSubscriptions.active + '</div><div class="stat-card-subtitle">总订阅数: ' + data.activeSubscriptions.total + '</div>' + (data.activeSubscriptions.expiringSoon>0?'<div class="stat-card-trend down"><i class="fas fa-exclamation-circle" aria-hidden="true"></i>' + data.activeSubscriptions.expiringSoon + ' 即将到期</div>':'') + '</div>';
+
+    // Recent payments
+    var rp = $('#recentPayments');
+    rp.innerHTML = data.recentPayments.length === 0 ? '<div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-4xl mb-3 opacity-50" aria-hidden="true"></i><p class="text-sm">过去7天内没有支付记录</p></div>' :
+      data.recentPayments.map(function(s) { return '<div class="list-item"><div class="list-item-content"><div class="list-item-name">' + s.name + '</div><div class="list-item-meta"><span><i class="fas fa-calendar" aria-hidden="true"></i> ' + new Date(s.paymentDate).toLocaleDateString('zh-CN') + '</span>' + (s.customType?'<span class="list-item-badge">' + s.customType + '</span>':'') + '</div></div><div class="list-item-amount">' + getSymbol(s.currency) + (s.amount||0).toFixed(2) + '</div></div>'; }).join('');
+
+    // Upcoming renewals
+    var ur = $('#upcomingRenewals');
+    ur.innerHTML = data.upcomingRenewals.length === 0 ? '<div class="text-center py-8 text-gray-400"><i class="fas fa-check-circle text-4xl mb-3 opacity-50" aria-hidden="true"></i><p class="text-sm">未来7天内没有即将续费的订阅</p></div>' :
+      data.upcomingRenewals.map(function(s) { return '<div class="list-item"><div class="list-item-content"><div class="list-item-name">' + s.name + '</div><div class="list-item-meta"><span><i class="fas fa-clock" aria-hidden="true"></i> ' + new Date(s.renewalDate).toLocaleDateString('zh-CN') + '</span><span style="color:#f59e0b;font-weight:600">' + s.daysUntilRenewal + ' 天后</span>' + (s.customType?'<span class="list-item-badge">' + s.customType + '</span>':'') + '</div></div><div class="list-item-amount">' + getSymbol(s.currency) + (s.amount||0).toFixed(2) + '</div></div>'; }).join('');
+
+    // Expense by type
+    var et = $('#expenseByType');
+    et.innerHTML = data.expenseByType.length === 0 ? '<div class="text-center py-8 text-gray-400"><i class="fas fa-chart-bar text-4xl mb-3 opacity-50" aria-hidden="true"></i><p class="text-sm">暂无支出数据</p></div>' :
+      data.expenseByType.map(function(item, i) { return '<div class="ranking-item"><div class="ranking-item-header"><div class="ranking-item-name">' + item.type + '</div><div class="ranking-item-value"><span class="ranking-item-amount">¥' + item.amount.toFixed(2) + '</span><span class="ranking-item-percentage">' + item.percentage + '%</span></div></div><div class="ranking-progress"><div class="ranking-progress-bar color-' + ((i%5)+1) + '" style="width:' + item.percentage + '%"></div></div></div>'; }).join('');
+
+    // Expense by category
+    var ec = $('#expenseByCategory');
+    ec.innerHTML = data.expenseByCategory.length === 0 ? '<div class="text-center py-8 text-gray-400"><i class="fas fa-folder text-4xl mb-3 opacity-50" aria-hidden="true"></i><p class="text-sm">暂无支出数据</p></div>' :
+      data.expenseByCategory.map(function(item, i) { return '<div class="ranking-item"><div class="ranking-item-header"><div class="ranking-item-name">' + item.category + '</div><div class="ranking-item-value"><span class="ranking-item-amount">¥' + item.amount.toFixed(2) + '</span><span class="ranking-item-percentage">' + item.percentage + '%</span></div></div><div class="ranking-progress"><div class="ranking-progress-bar color-' + ((i%5)+1) + '" style="width:' + item.percentage + '%"></div></div></div>'; }).join('');
+
+    // Scheduler history
+    var sh = data.schedulerStatusHistory || [];
+    var shEl = $('#schedulerStatusHistory');
+    if (shEl) { shEl.innerHTML = sh.length === 0 ? '<p class="text-sm text-gray-500">暂无历史记录</p>' : sh.slice(0,10).map(function(item) { return '<div class="py-2 border-b border-gray-100 last:border-b-0 text-sm"><div class="font-medium text-gray-800">' + (item.lastRunAt?new Date(item.lastRunAt).toLocaleString('zh-CN'):'未知时间') + ' · ' + (item.sent?'已发送':'未发送') + '</div><div class="text-xs text-gray-500 mt-1">' + (item.reason||'-') + '</div></div>'; }).join(''); }
+  } catch(e) {
+    console.error('Dashboard load error:', e);
+    var sg = $('#statsGrid'); if (sg) sg.innerHTML = '<div class="text-center py-8 text-red-500 col-span-full"><i class="fas fa-exclamation-triangle mr-2" aria-hidden="true"></i>加载失败: ' + e.message + '</div>';
+  }
+}
+
+// ====== SUBSCRIPTION LIST VIEW (loaded dynamically) ======
+
+// ====== INIT ======
+window.App = App;
+window.showToast = showToast;
+window.apiGet = apiGet;
+window.apiPost = apiPost;
+window.apiPut = apiPut;
+window.apiDelete = apiDelete;
+window.getSymbol = getSymbol;
+
+var loadedViews = {};
+function loadViewScript(name) {
+  return new Promise(function(resolve, reject) {
+    if (loadedViews[name]) { resolve(); return; }
+    var script = document.createElement('script');
+    script.src = '/views/' + name + '.js';
+    script.onload = function() { loadedViews[name] = true; resolve(); };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+function renderSubscriptionList(container) {
+  document.body.className = 'bg-gray-50';
+  container.innerHTML = '<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">' +
+    '<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">' +
+    '<div><h2 class="text-2xl font-bold text-gray-800">订阅列表</h2><p class="text-sm text-gray-500 mt-1">使用搜索与分类快速定位订阅，开启农历显示可同步查看农历日期</p></div>' +
+    '<div class="flex items-center space-x-3"><label class="inline-flex items-center"><input type="checkbox" id="listShowLunar" class="form-checkbox h-4 w-4 text-indigo-600" onchange="window._listReload&&window._listReload()"><span class="ml-2 text-sm text-gray-700">显示农历</span></label><button id="addSubscriptionBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-plus mr-2" aria-hidden="true"></i>添加新订阅</button></div></div>' +
+    '<div id="listContent"><div class="loading-skeleton" style="height:200px"></div></div></div>';
+  loadViewScript('subscription-list').then(function() {
+    if (window.initSubscriptionList) window.initSubscriptionList();
+  });
+}
+
+function renderConfig(container) {
+  document.body.className = 'bg-gray-100';
+  container.innerHTML = '<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8"><div class="bg-white rounded-lg shadow-md p-6"><h2 class="text-2xl font-bold text-gray-800 mb-6">系统配置</h2><div id="configContent"><div class="loading-skeleton" style="height:300px"></div></div></div></div>';
+  loadViewScript('config').then(function() {
+    if (window.initConfig) window.initConfig();
+  });
+}
+
+App.init();
+
+})();

@@ -1,0 +1,854 @@
+window.initConfig = function() {
+  if (!App || !App.user) {
+    showToast('请先登录', 'warning');
+    App && App.navigate && App.navigate('#login');
+    return;
+  }
+
+  var container = document.getElementById('configContent');
+  if (!container) return;
+
+  // [Debt: Accessibility/i18n] 配置页专用暗黑模式覆盖样式；后续应统一由主题系统管理
+  if (!document.getElementById('config-page-styles')) {
+    var styleEl = document.createElement('style');
+    styleEl.id = 'config-page-styles';
+    styleEl.textContent = 'html.dark .bg-indigo-50{background-color:rgba(55,65,81,0.5)!important;border-color:#4b5563!important}html.dark .text-indigo-700{color:#a5b4fc!important}';
+    document.head.appendChild(styleEl);
+  }
+
+  container.innerHTML = '<form id="configForm" class="space-y-8">' +
+    '<div class="border-b border-gray-200 pb-6">' +
+      '<h3 class="text-lg font-medium text-gray-900 mb-4">管理员账户</h3>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">' +
+        '<div>' +
+          '<label for="adminUsername" class="block text-sm font-medium text-gray-700">用户名</label>' +
+          '<input type="text" id="adminUsername" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+        '</div>' +
+        '<div>' +
+          '<label for="adminPassword" class="block text-sm font-medium text-gray-700">密码</label>' +
+          '<input type="password" id="adminPassword" placeholder="如不修改密码，请留空" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+          '<p class="mt-1 text-sm text-gray-500">留空表示不修改当前密码</p>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="border-b border-gray-200 pb-6">' +
+      '<h3 class="text-lg font-medium text-gray-900 mb-4">显示设置</h3>' +
+      '<div class="mb-6">' +
+        '<label for="themeModeSelect" class="block text-sm font-medium text-gray-700 mb-1">主题模式</label>' +
+        '<select id="themeModeSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white sm:text-sm">' +
+          '<option value="light">🌞 浅色模式</option>' +
+          '<option value="dark">🌙 暗黑模式</option>' +
+          '<option value="system">🖥️ 跟随系统</option>' +
+        '</select>' +
+        '<p class="mt-1 text-sm text-gray-500">选择系统的外观风格</p>' +
+      '</div>' +
+      '<div class="mb-6">' +
+        '<label class="inline-flex items-center">' +
+          '<input type="checkbox" id="showLunarGlobal" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked>' +
+          '<span class="ml-2 text-sm text-gray-700">在通知中显示农历日期</span>' +
+        '</label>' +
+        '<p class="mt-1 text-sm text-gray-500">控制是否在通知消息中包含农历日期信息</p>' +
+      '</div>' +
+    '</div>' +
+    '<div class="border-b border-gray-200 pb-6">' +
+      '<h3 class="text-lg font-medium text-gray-900 mb-4">时区设置</h3>' +
+      '<div class="mb-6">' +
+        '<label for="timezone" class="block text-sm font-medium text-gray-700 mb-1">时区选择</label>' +
+        '<select id="timezone" name="timezone" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white">' +
+          '<option value="UTC">世界标准时间（UTC+0）</option>' +
+          '<option value="Asia/Shanghai">中国标准时间（UTC+8）</option>' +
+          '<option value="Asia/Hong_Kong">香港时间（UTC+8）</option>' +
+          '<option value="Asia/Taipei">台北时间（UTC+8）</option>' +
+          '<option value="Asia/Singapore">新加坡时间（UTC+8）</option>' +
+          '<option value="Asia/Tokyo">日本时间（UTC+9）</option>' +
+          '<option value="Asia/Seoul">韩国时间（UTC+9）</option>' +
+          '<option value="America/New_York">美国东部时间（UTC-5）</option>' +
+          '<option value="America/Chicago">美国中部时间（UTC-6）</option>' +
+          '<option value="America/Denver">美国山地时间（UTC-7）</option>' +
+          '<option value="America/Los_Angeles">美国太平洋时间（UTC-8）</option>' +
+          '<option value="Europe/London">英国时间（UTC+0）</option>' +
+          '<option value="Europe/Paris">巴黎时间（UTC+1）</option>' +
+          '<option value="Europe/Berlin">柏林时间（UTC+1）</option>' +
+          '<option value="Europe/Moscow">莫斯科时间（UTC+3）</option>' +
+          '<option value="Australia/Sydney">悉尼时间（UTC+10）</option>' +
+          '<option value="Australia/Melbourne">墨尔本时间（UTC+10）</option>' +
+          '<option value="Pacific/Auckland">奥克兰时间（UTC+12）</option>' +
+        '</select>' +
+        '<p class="mt-1 text-sm text-gray-500">该项仅用于兼容旧配置与展示参考；后端调度与提醒计算统一使用 UTC，页面时间始终按当前设备时区显示。</p>' +
+      '</div>' +
+    '</div>' +
+    '<div class="border-b border-gray-200 pb-6">' +
+      '<h3 class="text-lg font-medium text-gray-900 mb-4">通知设置</h3>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">' +
+        '<div>' +
+          '<label for="notificationHours" class="block text-sm font-medium text-gray-700">通知时段（UTC）</label>' +
+          '<input type="text" id="notificationHours" placeholder="例如：08, 12, 20 或输入 * 表示全天" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+          '<p class="mt-1 text-sm text-gray-500">可输入多个小时，使用逗号或空格分隔；留空则默认每天执行一次任务即可</p>' +
+        '</div>' +
+        '<div class="bg-indigo-50 border border-indigo-100 rounded-md p-3 text-sm text-indigo-700">' +
+          '<p class="font-medium mb-1">提示</p>' +
+          '<p>后台统一按 UTC 判断通知时段。示例：北京时间 08:00 对应 UTC 00，请在此填 <code>00</code>。</p>' +
+          '<p class="mt-1">若 Cron 已设置为每小时执行，可用该字段限制实际发送提醒的小时段。</p>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mb-6">' +
+        '<label class="block text-sm font-medium text-gray-700 mb-3">通知方式（可多选）</label>' +
+        '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+          '<label class="inline-flex items-center"><input type="checkbox" name="enabledNotifiers" value="telegram" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"><span class="ml-2 text-sm text-gray-700">Telegram</span></label>' +
+          '<label class="inline-flex items-center"><input type="checkbox" name="enabledNotifiers" value="notifyx" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked><span class="ml-2 text-sm text-gray-700 font-semibold">NotifyX</span></label>' +
+          '<label class="inline-flex items-center"><input type="checkbox" name="enabledNotifiers" value="webhook" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"><span class="ml-2 text-sm text-gray-700">Webhook 通知</span></label>' +
+          '<label class="inline-flex items-center"><input type="checkbox" name="enabledNotifiers" value="wechatbot" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"><span class="ml-2 text-sm text-gray-700">企业微信机器人</span></label>' +
+          '<label class="inline-flex items-center"><input type="checkbox" name="enabledNotifiers" value="email" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"><span class="ml-2 text-sm text-gray-700">邮件通知</span></label>' +
+          '<label class="inline-flex items-center"><input type="checkbox" name="enabledNotifiers" value="bark" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"><span class="ml-2 text-sm text-gray-700">Bark</span></label>' +
+          '<label class="inline-flex items-center"><input type="checkbox" name="enabledNotifiers" value="gotify" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"><span class="ml-2 text-sm text-gray-700">Gotify</span></label>' +
+          '<label class="inline-flex items-center"><input type="checkbox" name="enabledNotifiers" value="serverchan" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"><span class="ml-2 text-sm text-gray-700">Server酱</span></label>' +
+          '<label class="inline-flex items-center"><input type="checkbox" name="enabledNotifiers" value="pushplus" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"><span class="ml-2 text-sm text-gray-700">PushPlus</span></label>' +
+        '</div>' +
+        '<div class="mt-2 flex flex-wrap gap-4">' +
+          '<a href="https://www.notifyx.cn/" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm"><i class="fas fa-external-link-alt ml-1"></i> NotifyX官网</a>' +
+          '<a href="https://webhook.site" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm"><i class="fas fa-external-link-alt ml-1"></i> Webhook 调试工具</a>' +
+          '<a href="https://developer.work.weixin.qq.com/document/path/91770" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm"><i class="fas fa-external-link-alt ml-1"></i> 企业微信机器人文档</a>' +
+          '<a href="https://developers.cloudflare.com/workers/tutorials/send-emails-with-resend/" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm"><i class="fas fa-external-link-alt ml-1"></i> 获取 Resend API Key</a>' +
+          '<a href="https://apps.apple.com/cn/app/bark-customed-notifications/id1403753865" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm"><i class="fas fa-external-link-alt ml-1"></i> Bark iOS应用</a>' +
+          '<a href="https://sct.ftqq.com/" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm"><i class="fas fa-external-link-alt ml-1"></i> Server酱官网</a>' +
+          '<a href="https://www.pushplus.plus/" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm"><i class="fas fa-external-link-alt ml-1"></i> PushPlus官网</a>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mb-6">' +
+        '<label for="thirdPartyToken" class="block text-sm font-medium text-gray-700">第三方 API 访问令牌</label>' +
+        '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+          '<input type="text" id="thirdPartyToken" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+          '<button type="button" id="generateThirdPartyToken" class="btn-info text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-magic mr-2"></i>生成令牌</button>' +
+          '<button type="button" id="clearThirdPartyToken" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+        '</div>' +
+        '<p id="THIRD_PARTY_API_TOKENStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+        '<p class="mt-1 text-sm text-gray-500">调用 /api/notify/{token} 接口时需携带此令牌；留空表示禁用第三方 API 推送。</p>' +
+      '</div>' +
+      '<div class="mb-6">' +
+        '<label class="block text-sm font-medium text-gray-700 mb-3">调试设置</label>' +
+        '<label class="inline-flex items-center cursor-pointer select-none">' +
+          '<input type="checkbox" id="debugLogs" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">' +
+          '<span class="ml-2 text-sm text-gray-700">开启调试日志（影响控制台输出）</span>' +
+        '</label>' +
+      '</div>' +
+      '<div class="mb-6">' +
+        '<label for="paymentHistoryLimit" class="block text-sm font-medium text-gray-700">支付历史保留条数</label>' +
+        '<input type="number" id="paymentHistoryLimit" min="10" max="1000" step="1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="默认 100">' +
+        '<p class="mt-1 text-sm text-gray-500">自动续订与手动续订后仅保留最近 N 条支付历史（建议 50~200，默认 100）。</p>' +
+      '</div>' +
+      '<div id="telegramConfig" class="config-section">' +
+        '<h4 class="text-md font-medium text-gray-900 mb-3">Telegram 配置</h4>' +
+        '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">' +
+          '<div>' +
+            '<label for="tgBotToken" class="block text-sm font-medium text-gray-700">Bot Token</label>' +
+            '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+              '<input type="text" id="tgBotToken" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<button type="button" id="clearTgBotToken" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+            '</div>' +
+            '<p id="TG_BOT_TOKENStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="tgChatId" class="block text-sm font-medium text-gray-700">Chat ID</label>' +
+            '<input type="text" id="tgChatId" placeholder="可从 @userinfobot 获取" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex justify-end">' +
+          '<button type="button" id="testTelegramBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-paper-plane mr-2"></i>测试 Telegram 通知</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="notifyxConfig" class="config-section">' +
+        '<h4 class="text-md font-medium text-gray-900 mb-3">NotifyX 配置</h4>' +
+        '<div class="mb-4">' +
+          '<label for="notifyxApiKey" class="block text-sm font-medium text-gray-700">API Key</label>' +
+          '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+            '<input type="text" id="notifyxApiKey" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+            '<button type="button" id="clearNotifyxApiKey" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+          '</div>' +
+          '<p id="NOTIFYX_API_KEYStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+          '<p class="mt-1 text-sm text-gray-500">从 <a href="https://www.notifyx.cn/" target="_blank" class="text-indigo-600 hover:text-indigo-800">NotifyX平台</a> 获取的 API Key</p>' +
+        '</div>' +
+        '<div class="flex justify-end">' +
+          '<button type="button" id="testNotifyXBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-paper-plane mr-2"></i>测试 NotifyX 通知</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="webhookConfig" class="config-section">' +
+        '<h4 class="text-md font-medium text-gray-900 mb-3">Webhook 通知 配置</h4>' +
+        '<div class="grid grid-cols-1 gap-4 mb-4">' +
+          '<div>' +
+            '<label for="webhookUrl" class="block text-sm font-medium text-gray-700">Webhook 通知 URL</label>' +
+            '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+              '<input type="url" id="webhookUrl" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<button type="button" id="clearWebhookUrl" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+            '</div>' +
+            '<p id="WEBHOOK_URLStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+            '<p class="mt-1 text-sm text-gray-500">请填写自建服务或第三方平台提供的 Webhook 地址，例如 <code>https://your-webhook-endpoint.com/path</code></p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="webhookMethod" class="block text-sm font-medium text-gray-700">请求方法</label>' +
+            '<select id="webhookMethod" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<option value="POST">POST</option>' +
+              '<option value="GET">GET</option>' +
+              '<option value="PUT">PUT</option>' +
+            '</select>' +
+          '</div>' +
+          '<div>' +
+            '<label for="webhookHeaders" class="block text-sm font-medium text-gray-700">自定义请求头 (JSON格式，可选)</label>' +
+            '<div class="mt-1 flex flex-col sm:flex-row sm:items-start gap-3">' +
+              '<textarea id="webhookHeaders" rows="3" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>' +
+              '<button type="button" id="clearWebhookHeaders" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+            '</div>' +
+            '<p id="WEBHOOK_HEADERSStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+            '<p class="mt-1 text-sm text-gray-500">JSON格式的自定义请求头，留空使用默认</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="webhookTemplate" class="block text-sm font-medium text-gray-700">消息模板 (JSON格式，可选)</label>' +
+            '<textarea id="webhookTemplate" rows="4" placeholder=\'{"title": "{{title}}", "content": "{{content}}", "timestamp": "{{timestamp}}"}\' class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>' +
+            '<p class="mt-1 text-sm text-gray-500">支持变量: {{title}}, {{content}}, {{timestamp}}。留空使用默认格式</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex justify-end">' +
+          '<button type="button" id="testWebhookBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-paper-plane mr-2"></i>测试 Webhook 通知</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="wechatbotConfig" class="config-section">' +
+        '<h4 class="text-md font-medium text-gray-900 mb-3">企业微信机器人 配置</h4>' +
+        '<div class="grid grid-cols-1 gap-4 mb-4">' +
+          '<div>' +
+            '<label for="wechatbotWebhook" class="block text-sm font-medium text-gray-700">机器人 Webhook URL</label>' +
+            '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+              '<input type="url" id="wechatbotWebhook" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<button type="button" id="clearWechatbotWebhook" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+            '</div>' +
+            '<p id="WECHATBOT_WEBHOOKStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+            '<p class="mt-1 text-sm text-gray-500">从企业微信群聊中添加机器人获取的 Webhook URL</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="wechatbotMsgType" class="block text-sm font-medium text-gray-700">消息类型</label>' +
+            '<select id="wechatbotMsgType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<option value="text">文本消息</option>' +
+              '<option value="markdown">Markdown消息</option>' +
+            '</select>' +
+            '<p class="mt-1 text-sm text-gray-500">选择发送的消息格式类型</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="wechatbotAtMobiles" class="block text-sm font-medium text-gray-700">@手机号 (可选)</label>' +
+            '<input type="text" id="wechatbotAtMobiles" placeholder="13800138000,13900139000" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+            '<p class="mt-1 text-sm text-gray-500">需要@的手机号，多个用逗号分隔，留空则不@任何人</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="wechatbotAtAll" class="block text-sm font-medium text-gray-700 mb-2">@所有人</label>' +
+            '<label class="inline-flex items-center">' +
+              '<input type="checkbox" id="wechatbotAtAll" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">' +
+              '<span class="ml-2 text-sm text-gray-700">发送消息时@所有人</span>' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex justify-end">' +
+          '<button type="button" id="testWechatBotBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-paper-plane mr-2"></i>测试 企业微信机器人</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="emailConfig" class="config-section">' +
+        '<h4 class="text-md font-medium text-gray-900 mb-3">邮件通知 配置</h4>' +
+        '<div class="grid grid-cols-1 gap-4 mb-4">' +
+          '<div>' +
+            '<label for="resendApiKey" class="block text-sm font-medium text-gray-700">Resend API Key</label>' +
+            '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+              '<input type="text" id="resendApiKey" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<button type="button" id="clearResendApiKey" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+            '</div>' +
+            '<p id="RESEND_API_KEYStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+            '<p class="mt-1 text-sm text-gray-500">从 <a href="https://resend.com/api-keys" target="_blank" class="text-indigo-600 hover:text-indigo-800">Resend控制台</a> 获取的 API Key</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="emailFrom" class="block text-sm font-medium text-gray-700">发件人邮箱</label>' +
+            '<input type="email" id="emailFrom" placeholder="noreply@yourdomain.com" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+            '<p class="mt-1 text-sm text-gray-500">必须是已在Resend验证的域名邮箱</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="emailFromName" class="block text-sm font-medium text-gray-700">发件人名称</label>' +
+            '<input type="text" id="emailFromName" placeholder="订阅提醒系统" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+            '<p class="mt-1 text-sm text-gray-500">显示在邮件中的发件人名称</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="emailTo" class="block text-sm font-medium text-gray-700">收件人邮箱</label>' +
+            '<input type="email" id="emailTo" placeholder="user@example.com" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+            '<p class="mt-1 text-sm text-gray-500">接收通知邮件的邮箱地址</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex justify-end">' +
+          '<button type="button" id="testEmailBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-paper-plane mr-2"></i>测试 邮件通知</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="barkConfig" class="config-section">' +
+        '<h4 class="text-md font-medium text-gray-900 mb-3">Bark 配置</h4>' +
+        '<div class="grid grid-cols-1 gap-4 mb-4">' +
+          '<div>' +
+            '<label for="barkServer" class="block text-sm font-medium text-gray-700">服务器地址</label>' +
+            '<input type="url" id="barkServer" placeholder="https://api.day.app" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+            '<p class="mt-1 text-sm text-gray-500">Bark 服务器地址，默认为官方服务器，也可以使用自建服务器</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="barkDeviceKey" class="block text-sm font-medium text-gray-700">设备Key</label>' +
+            '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+              '<input type="text" id="barkDeviceKey" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<button type="button" id="clearBarkDeviceKey" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+            '</div>' +
+            '<p id="BARK_DEVICE_KEYStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+            '<p class="mt-1 text-sm text-gray-500">从 <a href="https://apps.apple.com/cn/app/bark-customed-notifications/id1403753865" target="_blank" class="text-indigo-600 hover:text-indigo-800">Bark iOS 应用</a> 中获取的设备Key</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="barkIsArchive" class="block text-sm font-medium text-gray-700 mb-2">保存推送</label>' +
+            '<label class="inline-flex items-center">' +
+              '<input type="checkbox" id="barkIsArchive" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">' +
+              '<span class="ml-2 text-sm text-gray-700">保存推送到历史记录</span>' +
+            '</label>' +
+            '<p class="mt-1 text-sm text-gray-500">勾选后推送消息会保存到 Bark 的历史记录中</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex justify-end">' +
+          '<button type="button" id="testBarkBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-paper-plane mr-2"></i>测试 Bark 通知</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="gotifyConfig" class="config-section">' +
+        '<h4 class="text-md font-medium text-gray-900 mb-3">Gotify 配置</h4>' +
+        '<div class="grid grid-cols-1 gap-4 mb-4">' +
+          '<div>' +
+            '<label for="gotifyServerUrl" class="block text-sm font-medium text-gray-700">Server URL</label>' +
+            '<input type="url" id="gotifyServerUrl" placeholder="https://gotify.example.com" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+            '<p class="mt-1 text-sm text-gray-500">你的 Gotify 服务地址（不需要带 /message）。</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="gotifyAppToken" class="block text-sm font-medium text-gray-700">Application Token</label>' +
+            '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+              '<input type="text" id="gotifyAppToken" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<button type="button" id="clearGotifyAppToken" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+            '</div>' +
+            '<p id="GOTIFY_APP_TOKENStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex justify-end">' +
+          '<button type="button" id="testGotifyBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-paper-plane mr-2"></i>测试 Gotify 通知</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="serverchanConfig" class="config-section">' +
+        '<h4 class="text-md font-medium text-gray-900 mb-3">Server酱 配置</h4>' +
+        '<div class="grid grid-cols-1 gap-4 mb-4">' +
+          '<div>' +
+            '<label for="serverchanSendKey" class="block text-sm font-medium text-gray-700">SendKey</label>' +
+            '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+              '<input type="text" id="serverchanSendKey" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<button type="button" id="clearServerchanSendKey" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+            '</div>' +
+            '<p id="SERVERCHAN_SENDKEYStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+            '<p class="mt-1 text-sm text-gray-500">从 <a href="https://sct.ftqq.com/" target="_blank" class="text-indigo-600 hover:text-indigo-800">Server酱</a> 获取 SendKey</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex justify-end">' +
+          '<button type="button" id="testServerchanBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-paper-plane mr-2"></i>测试 Server酱 通知</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="pushplusConfig" class="config-section">' +
+        '<h4 class="text-md font-medium text-gray-900 mb-3">PushPlus 配置</h4>' +
+        '<div class="grid grid-cols-1 gap-4 mb-4">' +
+          '<div>' +
+            '<label for="pushplusToken" class="block text-sm font-medium text-gray-700">Token</label>' +
+            '<div class="mt-1 flex flex-col sm:flex-row sm:items-center gap-3">' +
+              '<input type="text" id="pushplusToken" placeholder="留空表示不修改；输入新值将更新" class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<button type="button" id="clearPushplusToken" class="btn-warning text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"><i class="fas fa-eraser mr-2"></i>清空</button>' +
+            '</div>' +
+            '<p id="PUSHPLUS_TOKENStatus" class="mt-1 text-xs text-gray-500">加载中...</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="pushplusTopic" class="block text-sm font-medium text-gray-700">群组编码 Topic（可选）</label>' +
+            '<input type="text" id="pushplusTopic" placeholder="留空则发送到个人渠道" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+          '</div>' +
+          '<div>' +
+            '<label for="pushplusChannel" class="block text-sm font-medium text-gray-700">渠道（可选）</label>' +
+            '<select id="pushplusChannel" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">' +
+              '<option value="">默认</option>' +
+              '<option value="wechat">微信公众号</option>' +
+              '<option value="mail">邮件</option>' +
+              '<option value="sms">短信</option>' +
+              '<option value="webhook">Webhook</option>' +
+            '</select>' +
+            '<p class="mt-1 text-sm text-gray-500">具体可用渠道以 PushPlus 平台支持情况为准</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex justify-end">' +
+          '<button type="button" id="testPushplusBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fas fa-paper-plane mr-2"></i>测试 PushPlus 通知</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="flex justify-end">' +
+      '<button type="submit" class="btn-primary text-white px-6 py-2 rounded-md text-sm font-medium"><i class="fas fa-save mr-2"></i>保存配置</button>' +
+    '</div>' +
+  '</form>';
+
+  var CLEAR_SECRET_FIELDS = new Set();
+
+  function setSecretStatus(key, text) {
+    var el = document.getElementById(key + 'Status');
+    if (!el) return;
+    el.textContent = text;
+  }
+
+  function updateAllSecretStatus() {
+    var cfg = window.SECRET_CONFIGURED || {};
+    setSecretStatus('TG_BOT_TOKEN', cfg.TG_BOT_TOKEN ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('NOTIFYX_API_KEY', cfg.NOTIFYX_API_KEY ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('WEBHOOK_URL', cfg.WEBHOOK_URL ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('WEBHOOK_HEADERS', cfg.WEBHOOK_HEADERS ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('WECHATBOT_WEBHOOK', cfg.WECHATBOT_WEBHOOK ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('RESEND_API_KEY', cfg.RESEND_API_KEY ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('BARK_DEVICE_KEY', cfg.BARK_DEVICE_KEY ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('THIRD_PARTY_API_TOKEN', cfg.THIRD_PARTY_API_TOKEN ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('GOTIFY_APP_TOKEN', cfg.GOTIFY_APP_TOKEN ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('SERVERCHAN_SENDKEY', cfg.SERVERCHAN_SENDKEY ? '已配置（已隐藏）' : '未配置');
+    setSecretStatus('PUSHPLUS_TOKEN', cfg.PUSHPLUS_TOKEN ? '已配置（已隐藏）' : '未配置');
+  }
+
+  function wireSecretInput(inputId, key) {
+    var input = document.getElementById(inputId);
+    if (!input) return;
+    input.addEventListener('input', function() {
+      var value = input.value.trim();
+      if (value.length > 0) {
+        CLEAR_SECRET_FIELDS.delete(key);
+        setSecretStatus(key, '将更新（保存后生效）');
+      } else {
+        var cfg = window.SECRET_CONFIGURED || {};
+        setSecretStatus(key, cfg[key] ? '已配置（已隐藏）' : '未配置');
+      }
+    });
+  }
+
+  function wireClearSecretButton(buttonId, inputId, key) {
+    var btn = document.getElementById(buttonId);
+    var input = document.getElementById(inputId);
+    if (!btn || !input) return;
+    btn.addEventListener('click', function() {
+      input.value = '';
+      CLEAR_SECRET_FIELDS.add(key);
+      setSecretStatus(key, '将清空（保存后生效）');
+      showToast('已标记清空：' + key + '（点击"保存配置"后生效）', 'warning', 4500);
+    });
+  }
+
+  function generateTimezoneOptions(selectedTimezone) {
+    var timezoneSelect = document.getElementById('timezone');
+    if (!timezoneSelect) return;
+    var fallbackTimezone = 'UTC';
+
+    var timezones = [
+      { value: 'UTC', name: '世界标准时间', offset: '+0' },
+      { value: 'Asia/Shanghai', name: '中国标准时间', offset: '+8' },
+      { value: 'Asia/Hong_Kong', name: '香港时间', offset: '+8' },
+      { value: 'Asia/Taipei', name: '台北时间', offset: '+8' },
+      { value: 'Asia/Singapore', name: '新加坡时间', offset: '+8' },
+      { value: 'Asia/Tokyo', name: '日本时间', offset: '+9' },
+      { value: 'Asia/Seoul', name: '韩国时间', offset: '+9' },
+      { value: 'America/New_York', name: '美国东部时间', offset: '-5' },
+      { value: 'America/Chicago', name: '美国中部时间', offset: '-6' },
+      { value: 'America/Denver', name: '美国山地时间', offset: '-7' },
+      { value: 'America/Los_Angeles', name: '美国太平洋时间', offset: '-8' },
+      { value: 'Europe/London', name: '英国时间', offset: '+0' },
+      { value: 'Europe/Paris', name: '巴黎时间', offset: '+1' },
+      { value: 'Europe/Berlin', name: '柏林时间', offset: '+1' },
+      { value: 'Europe/Moscow', name: '莫斯科时间', offset: '+3' },
+      { value: 'Australia/Sydney', name: '悉尼时间', offset: '+10' },
+      { value: 'Australia/Melbourne', name: '墨尔本时间', offset: '+10' },
+      { value: 'Pacific/Auckland', name: '奥克兰时间', offset: '+12' }
+    ];
+
+    timezoneSelect.innerHTML = '';
+
+    timezones.forEach(function(tz) {
+      var option = document.createElement('option');
+      option.value = tz.value;
+      option.textContent = tz.name + '（UTC' + tz.offset + '）';
+      timezoneSelect.appendChild(option);
+    });
+
+    var timezoneExists = timezones.some(function(tz) { return tz.value === selectedTimezone; });
+    timezoneSelect.value = timezoneExists ? selectedTimezone : fallbackTimezone;
+
+    if (!timezoneExists) {
+      showToast('检测到未知时区配置，已回退为 UTC，请重新确认后保存', 'warning', 4500);
+    }
+  }
+
+  function toggleNotificationConfigs(enabledNotifiers) {
+    var sections = {
+      telegram: document.getElementById('telegramConfig'),
+      notifyx: document.getElementById('notifyxConfig'),
+      webhook: document.getElementById('webhookConfig'),
+      wechatbot: document.getElementById('wechatbotConfig'),
+      email: document.getElementById('emailConfig'),
+      bark: document.getElementById('barkConfig'),
+      gotify: document.getElementById('gotifyConfig'),
+      serverchan: document.getElementById('serverchanConfig'),
+      pushplus: document.getElementById('pushplusConfig')
+    };
+
+    Object.values(sections).forEach(function(config) {
+      if (config) {
+        config.classList.remove('active', 'inactive');
+        config.classList.add('inactive');
+      }
+    });
+
+    enabledNotifiers.forEach(function(type) {
+      var section = sections[type];
+      if (section) {
+        section.classList.remove('inactive');
+        section.classList.add('active');
+      }
+    });
+  }
+
+  async function loadConfig() {
+    try {
+      var config = await apiGet('/api/config');
+
+      document.getElementById('adminUsername').value = config.ADMIN_USERNAME || '';
+      document.getElementById('themeModeSelect').value = config.THEME_MODE || 'system';
+
+      document.getElementById('tgChatId').value = config.TG_CHAT_ID || '';
+      document.getElementById('webhookMethod').value = config.WEBHOOK_METHOD || 'POST';
+      document.getElementById('webhookTemplate').value = config.WEBHOOK_TEMPLATE || '';
+      document.getElementById('wechatbotMsgType').value = config.WECHATBOT_MSG_TYPE || 'text';
+      document.getElementById('wechatbotAtMobiles').value = config.WECHATBOT_AT_MOBILES || '';
+      document.getElementById('wechatbotAtAll').checked = config.WECHATBOT_AT_ALL === 'true';
+      document.getElementById('emailFrom').value = config.EMAIL_FROM || '';
+      document.getElementById('emailFromName').value = config.EMAIL_FROM_NAME || '订阅提醒系统';
+      document.getElementById('emailTo').value = config.EMAIL_TO || '';
+      document.getElementById('barkServer').value = config.BARK_SERVER || 'https://api.day.app';
+      document.getElementById('barkIsArchive').checked = config.BARK_IS_ARCHIVE === 'true';
+      document.getElementById('gotifyServerUrl').value = config.GOTIFY_SERVER_URL || '';
+      document.getElementById('pushplusTopic').value = config.PUSHPLUS_TOPIC || '';
+      document.getElementById('pushplusChannel').value = config.PUSHPLUS_CHANNEL || '';
+
+      document.getElementById('tgBotToken').value = '';
+      document.getElementById('notifyxApiKey').value = '';
+      document.getElementById('webhookUrl').value = '';
+      document.getElementById('webhookHeaders').value = '';
+      document.getElementById('wechatbotWebhook').value = '';
+      document.getElementById('resendApiKey').value = '';
+      document.getElementById('barkDeviceKey').value = '';
+      document.getElementById('thirdPartyToken').value = '';
+      document.getElementById('gotifyAppToken').value = '';
+      document.getElementById('serverchanSendKey').value = '';
+      document.getElementById('pushplusToken').value = '';
+
+      window.SECRET_CONFIGURED = {
+        TG_BOT_TOKEN: config.TG_BOT_TOKEN_CONFIGURED === true,
+        NOTIFYX_API_KEY: config.NOTIFYX_API_KEY_CONFIGURED === true,
+        WEBHOOK_URL: config.WEBHOOK_URL_CONFIGURED === true,
+        WEBHOOK_HEADERS: config.WEBHOOK_HEADERS_CONFIGURED === true,
+        WECHATBOT_WEBHOOK: config.WECHATBOT_WEBHOOK_CONFIGURED === true,
+        RESEND_API_KEY: config.RESEND_API_KEY_CONFIGURED === true,
+        BARK_DEVICE_KEY: config.BARK_DEVICE_KEY_CONFIGURED === true,
+        THIRD_PARTY_API_TOKEN: config.THIRD_PARTY_API_TOKEN_CONFIGURED === true,
+        GOTIFY_APP_TOKEN: config.GOTIFY_APP_TOKEN_CONFIGURED === true,
+        SERVERCHAN_SENDKEY: config.SERVERCHAN_SENDKEY_CONFIGURED === true,
+        PUSHPLUS_TOKEN: config.PUSHPLUS_TOKEN_CONFIGURED === true
+      };
+
+      updateAllSecretStatus();
+      document.getElementById('debugLogs').checked = config.DEBUG_LOGS === true;
+      document.getElementById('paymentHistoryLimit').value = Number(config.PAYMENT_HISTORY_LIMIT) || 100;
+
+      var notificationHoursInput = document.getElementById('notificationHours');
+      if (notificationHoursInput) {
+        var hours = Array.isArray(config.NOTIFICATION_HOURS) ? config.NOTIFICATION_HOURS : [];
+        notificationHoursInput.value = hours.join(', ');
+      }
+
+      document.getElementById('showLunarGlobal').checked = config.SHOW_LUNAR === true;
+
+      generateTimezoneOptions(config.TIMEZONE || 'UTC');
+
+      var enabledNotifiers = config.ENABLED_NOTIFIERS || ['notifyx'];
+      document.querySelectorAll('input[name="enabledNotifiers"]').forEach(function(checkbox) {
+        checkbox.checked = enabledNotifiers.indexOf(checkbox.value) !== -1;
+      });
+
+      toggleNotificationConfigs(enabledNotifiers);
+    } catch (error) {
+      console.error('加载配置失败:', error);
+      showToast('加载配置失败，请刷新页面重试', 'error');
+    }
+  }
+
+  document.querySelectorAll('input[name="enabledNotifiers"]').forEach(function(checkbox) {
+    checkbox.addEventListener('change', function() {
+      var enabledNotifiers = [];
+      document.querySelectorAll('input[name="enabledNotifiers"]:checked').forEach(function(cb) {
+        enabledNotifiers.push(cb.value);
+      });
+      toggleNotificationConfigs(enabledNotifiers);
+    });
+  });
+
+  document.getElementById('configForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    var enabledNotifiers = [];
+    document.querySelectorAll('input[name="enabledNotifiers"]:checked').forEach(function(cb) {
+      enabledNotifiers.push(cb.value);
+    });
+
+    if (enabledNotifiers.length === 0) {
+      showToast('请至少选择一种通知方式', 'warning');
+      return;
+    }
+
+    var config = {
+      ADMIN_USERNAME: document.getElementById('adminUsername').value.trim(),
+      THEME_MODE: document.getElementById('themeModeSelect').value,
+      TG_BOT_TOKEN: document.getElementById('tgBotToken').value.trim(),
+      NOTIFYX_API_KEY: document.getElementById('notifyxApiKey').value.trim(),
+      WEBHOOK_URL: document.getElementById('webhookUrl').value.trim(),
+      WEBHOOK_HEADERS: document.getElementById('webhookHeaders').value.trim(),
+      WECHATBOT_WEBHOOK: document.getElementById('wechatbotWebhook').value.trim(),
+      RESEND_API_KEY: document.getElementById('resendApiKey').value.trim(),
+      BARK_DEVICE_KEY: document.getElementById('barkDeviceKey').value.trim(),
+      THIRD_PARTY_API_TOKEN: document.getElementById('thirdPartyToken').value.trim(),
+      GOTIFY_APP_TOKEN: document.getElementById('gotifyAppToken').value.trim(),
+      SERVERCHAN_SENDKEY: document.getElementById('serverchanSendKey').value.trim(),
+      PUSHPLUS_TOKEN: document.getElementById('pushplusToken').value.trim(),
+      TG_CHAT_ID: document.getElementById('tgChatId').value.trim(),
+      WEBHOOK_METHOD: document.getElementById('webhookMethod').value,
+      WEBHOOK_TEMPLATE: document.getElementById('webhookTemplate').value.trim(),
+      SHOW_LUNAR: document.getElementById('showLunarGlobal').checked,
+      WECHATBOT_MSG_TYPE: document.getElementById('wechatbotMsgType').value,
+      WECHATBOT_AT_MOBILES: document.getElementById('wechatbotAtMobiles').value.trim(),
+      WECHATBOT_AT_ALL: document.getElementById('wechatbotAtAll').checked.toString(),
+      EMAIL_FROM: document.getElementById('emailFrom').value.trim(),
+      EMAIL_FROM_NAME: document.getElementById('emailFromName').value.trim(),
+      EMAIL_TO: document.getElementById('emailTo').value.trim(),
+      BARK_SERVER: document.getElementById('barkServer').value.trim() || 'https://api.day.app',
+      BARK_IS_ARCHIVE: document.getElementById('barkIsArchive').checked.toString(),
+      GOTIFY_SERVER_URL: document.getElementById('gotifyServerUrl').value.trim(),
+      PUSHPLUS_TOPIC: document.getElementById('pushplusTopic').value.trim(),
+      PUSHPLUS_CHANNEL: document.getElementById('pushplusChannel').value.trim(),
+      ENABLED_NOTIFIERS: enabledNotifiers,
+      TIMEZONE: document.getElementById('timezone').value.trim(),
+      CLEAR_SECRET_FIELDS: Array.from(CLEAR_SECRET_FIELDS),
+      DEBUG_LOGS: document.getElementById('debugLogs').checked === true,
+      PAYMENT_HISTORY_LIMIT: (function() {
+        var raw = Number(document.getElementById('paymentHistoryLimit').value);
+        if (!Number.isFinite(raw)) return 100;
+        return Math.min(1000, Math.max(10, Math.floor(raw)));
+      })(),
+      NOTIFICATION_HOURS: (function() {
+        var raw = document.getElementById('notificationHours').value.trim();
+        if (!raw) return [];
+        return raw.split(/[,，\s]+/).map(function(item) { return item.trim(); }).filter(function(item) { return item.length > 0; });
+      })()
+    };
+
+    var passwordField = document.getElementById('adminPassword');
+    if (passwordField.value.trim()) {
+      config.ADMIN_PASSWORD = passwordField.value.trim();
+    }
+
+    var submitButton = e.target.querySelector('button[type="submit"]');
+    var originalContent = submitButton.innerHTML;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>保存中...';
+    submitButton.disabled = true;
+
+    try {
+      var result = await apiPost('/api/config', config);
+
+      if (result.success) {
+        showToast('配置保存成功', 'success');
+        if (window.updateAppTheme) {
+          window.updateAppTheme(config.THEME_MODE);
+        }
+        passwordField.value = '';
+        localStorage.setItem('timezoneUpdated', Date.now().toString());
+      } else {
+        showToast('配置保存失败: ' + (result.message || '未知错误'), 'error');
+      }
+    } catch (error) {
+      console.error('保存配置失败:', error);
+      showToast('保存配置失败，请稍后再试', 'error');
+    } finally {
+      submitButton.innerHTML = originalContent;
+      submitButton.disabled = false;
+    }
+  });
+
+  async function testNotification(type) {
+    var buttonMap = {
+      telegram: 'testTelegramBtn',
+      notifyx: 'testNotifyXBtn',
+      wechatbot: 'testWechatBotBtn',
+      email: 'testEmailBtn',
+      bark: 'testBarkBtn',
+      gotify: 'testGotifyBtn',
+      serverchan: 'testServerchanBtn',
+      pushplus: 'testPushplusBtn',
+      webhook: 'testWebhookBtn'
+    };
+    var buttonId = buttonMap[type];
+    var button = document.getElementById(buttonId);
+    if (!button) {
+      showToast('测试按钮不存在，请刷新页面后重试', 'error');
+      return;
+    }
+    var originalContent = button.innerHTML;
+    var serviceNames = {
+      telegram: 'Telegram',
+      notifyx: 'NotifyX',
+      wechatbot: '企业微信机器人',
+      email: '邮件通知',
+      bark: 'Bark',
+      gotify: 'Gotify',
+      serverchan: 'Server酱',
+      pushplus: 'PushPlus',
+      webhook: 'Webhook 通知'
+    };
+    var serviceName = serviceNames[type];
+
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>测试中...';
+    button.disabled = true;
+
+    var config = {};
+
+    if (type === 'telegram') {
+      config.TG_CHAT_ID = document.getElementById('tgChatId').value.trim();
+      var token = document.getElementById('tgBotToken').value.trim();
+      if (token) config.TG_BOT_TOKEN = token;
+    } else if (type === 'notifyx') {
+      var key = document.getElementById('notifyxApiKey').value.trim();
+      if (key) config.NOTIFYX_API_KEY = key;
+    } else if (type === 'webhook') {
+      config.WEBHOOK_METHOD = document.getElementById('webhookMethod').value;
+      config.WEBHOOK_TEMPLATE = document.getElementById('webhookTemplate').value.trim();
+      var url = document.getElementById('webhookUrl').value.trim();
+      var headers = document.getElementById('webhookHeaders').value.trim();
+      if (url) config.WEBHOOK_URL = url;
+      if (headers) config.WEBHOOK_HEADERS = headers;
+    } else if (type === 'wechatbot') {
+      config.WECHATBOT_MSG_TYPE = document.getElementById('wechatbotMsgType').value;
+      config.WECHATBOT_AT_MOBILES = document.getElementById('wechatbotAtMobiles').value.trim();
+      config.WECHATBOT_AT_ALL = document.getElementById('wechatbotAtAll').checked.toString();
+      var wcUrl = document.getElementById('wechatbotWebhook').value.trim();
+      if (wcUrl) config.WECHATBOT_WEBHOOK = wcUrl;
+    } else if (type === 'email') {
+      var ek = document.getElementById('resendApiKey').value.trim();
+      if (ek) config.RESEND_API_KEY = ek;
+      config.EMAIL_FROM = document.getElementById('emailFrom').value.trim();
+      config.EMAIL_FROM_NAME = document.getElementById('emailFromName').value.trim();
+      config.EMAIL_TO = document.getElementById('emailTo').value.trim();
+    } else if (type === 'bark') {
+      config.BARK_SERVER = document.getElementById('barkServer').value.trim() || 'https://api.day.app';
+      var bk = document.getElementById('barkDeviceKey').value.trim();
+      if (bk) config.BARK_DEVICE_KEY = bk;
+      config.BARK_IS_ARCHIVE = document.getElementById('barkIsArchive').checked.toString();
+    } else if (type === 'gotify') {
+      config.GOTIFY_SERVER_URL = document.getElementById('gotifyServerUrl').value.trim();
+      var gt = document.getElementById('gotifyAppToken').value.trim();
+      if (gt) config.GOTIFY_APP_TOKEN = gt;
+
+      if (!config.GOTIFY_SERVER_URL) {
+        showToast('请先填写 Gotify Server URL', 'warning');
+        button.innerHTML = originalContent;
+        button.disabled = false;
+        return;
+      }
+    } else if (type === 'serverchan') {
+      var sk = document.getElementById('serverchanSendKey').value.trim();
+      if (sk) config.SERVERCHAN_SENDKEY = sk;
+    } else if (type === 'pushplus') {
+      var pt = document.getElementById('pushplusToken').value.trim();
+      if (pt) config.PUSHPLUS_TOKEN = pt;
+      config.PUSHPLUS_TOPIC = document.getElementById('pushplusTopic').value.trim();
+      config.PUSHPLUS_CHANNEL = document.getElementById('pushplusChannel').value.trim();
+    }
+
+    try {
+      var payload = { type: type };
+      Object.keys(config).forEach(function(k) { payload[k] = config[k]; });
+      var response = await fetch('/api/test-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      var result = null;
+      try {
+        result = await response.json();
+      } catch (_) {
+        result = { success: false, message: '服务返回了无法解析的响应' };
+      }
+
+      if (response.ok && result.success) {
+        showToast(serviceName + ' 通知测试成功！', 'success');
+      } else {
+        var message = (result && result.message) ? result.message : ('HTTP ' + response.status);
+        showToast(serviceName + ' 通知测试失败: ' + message, 'error', 4500);
+      }
+    } catch (error) {
+      console.error('测试通知失败:', error);
+      showToast(serviceName + ' 测试失败，请检查网络后重试', 'error');
+    } finally {
+      button.innerHTML = originalContent;
+      button.disabled = false;
+    }
+  }
+
+  document.getElementById('testTelegramBtn').addEventListener('click', function() { testNotification('telegram'); });
+  document.getElementById('testNotifyXBtn').addEventListener('click', function() { testNotification('notifyx'); });
+  document.getElementById('testWebhookBtn').addEventListener('click', function() { testNotification('webhook'); });
+  document.getElementById('testWechatBotBtn').addEventListener('click', function() { testNotification('wechatbot'); });
+  document.getElementById('testEmailBtn').addEventListener('click', function() { testNotification('email'); });
+  document.getElementById('testBarkBtn').addEventListener('click', function() { testNotification('bark'); });
+  document.getElementById('testGotifyBtn').addEventListener('click', function() { testNotification('gotify'); });
+  document.getElementById('testServerchanBtn').addEventListener('click', function() { testNotification('serverchan'); });
+  document.getElementById('testPushplusBtn').addEventListener('click', function() { testNotification('pushplus'); });
+
+  document.getElementById('generateThirdPartyToken').addEventListener('click', function() {
+    try {
+      var charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      var buffer = new Uint8Array(32);
+      window.crypto.getRandomValues(buffer);
+      var token = Array.from(buffer).map(function(v) { return charset[v % charset.length]; }).join('');
+      var input = document.getElementById('thirdPartyToken');
+      input.value = token;
+      input.dispatchEvent(new Event('input'));
+      showToast('已生成新的第三方 API 令牌，请保存配置后生效', 'info');
+    } catch (error) {
+      console.error('生成令牌失败:', error);
+      showToast('生成令牌失败，请手动输入', 'error');
+    }
+  });
+
+  wireSecretInput('tgBotToken', 'TG_BOT_TOKEN');
+  wireSecretInput('notifyxApiKey', 'NOTIFYX_API_KEY');
+  wireSecretInput('webhookUrl', 'WEBHOOK_URL');
+  wireSecretInput('webhookHeaders', 'WEBHOOK_HEADERS');
+  wireSecretInput('wechatbotWebhook', 'WECHATBOT_WEBHOOK');
+  wireSecretInput('resendApiKey', 'RESEND_API_KEY');
+  wireSecretInput('barkDeviceKey', 'BARK_DEVICE_KEY');
+  wireSecretInput('thirdPartyToken', 'THIRD_PARTY_API_TOKEN');
+  wireSecretInput('gotifyAppToken', 'GOTIFY_APP_TOKEN');
+  wireSecretInput('serverchanSendKey', 'SERVERCHAN_SENDKEY');
+  wireSecretInput('pushplusToken', 'PUSHPLUS_TOKEN');
+
+  wireClearSecretButton('clearTgBotToken', 'tgBotToken', 'TG_BOT_TOKEN');
+  wireClearSecretButton('clearNotifyxApiKey', 'notifyxApiKey', 'NOTIFYX_API_KEY');
+  wireClearSecretButton('clearWebhookUrl', 'webhookUrl', 'WEBHOOK_URL');
+  wireClearSecretButton('clearWebhookHeaders', 'webhookHeaders', 'WEBHOOK_HEADERS');
+  wireClearSecretButton('clearWechatbotWebhook', 'wechatbotWebhook', 'WECHATBOT_WEBHOOK');
+  wireClearSecretButton('clearResendApiKey', 'resendApiKey', 'RESEND_API_KEY');
+  wireClearSecretButton('clearBarkDeviceKey', 'barkDeviceKey', 'BARK_DEVICE_KEY');
+  wireClearSecretButton('clearThirdPartyToken', 'thirdPartyToken', 'THIRD_PARTY_API_TOKEN');
+  wireClearSecretButton('clearGotifyAppToken', 'gotifyAppToken', 'GOTIFY_APP_TOKEN');
+  wireClearSecretButton('clearServerchanSendKey', 'serverchanSendKey', 'SERVERCHAN_SENDKEY');
+  wireClearSecretButton('clearPushplusToken', 'pushplusToken', 'PUSHPLUS_TOKEN');
+
+  loadConfig();
+};

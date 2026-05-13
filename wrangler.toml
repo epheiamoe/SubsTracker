@@ -3,15 +3,8 @@ main = "src/index.js"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-routes = [
-  { pattern = "SubsTracker.epheia.moe/*", zone_id = "cc4d7d5845bc24f2b62286c5f80911cb" }
-]
-
-[env.production]
-name = "subscription-manager"
-
-[env.staging]
-name = "subscription-manager-staging"
+[vars]
+ENVIRONMENT = "production"
 
 [durable_objects]
 bindings = [
@@ -22,12 +15,37 @@ bindings = [
 tag = "v1"
 new_classes = ["RateLimiterDO"]
 
-# KV 命名空间配置（默认模板不预设固定 ID，运行 npm run setup 自动生成）
+# KV 命名空间配置（自动生成）
+[[kv_namespaces]]
+binding = "SUBSCRIPTIONS_KV"
+id = "a93b710d9a8e4a22bb84a32025872866"
+preview_id = "a6bac6271d3a451697c2ad9c7dd0ec41"
 
-# 定时任务配置 - 每小时检查一次（UTC）
 [triggers]
 crons = ["0 * * * *"]
 
-# 环境变量（可选，也可以在 Cloudflare Dashboard 中设置）
-[vars]
-ENVIRONMENT = "production"
+[env.production]
+name = "subscription-manager"
+routes = [
+  { pattern = "SubsTracker.epheia.moe/*", zone_id = "cc4d7d5845bc24f2b62286c5f80911cb" }
+]
+
+[env.staging]
+name = "subscription-manager-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+
+[env.staging.durable_objects]
+bindings = [
+  { name = "RATE_LIMITER", class_name = "RateLimiterDO" }
+]
+
+[[env.staging.migrations]]
+tag = "v1"
+new_classes = ["RateLimiterDO"]
+
+[[env.staging.kv_namespaces]]
+binding = "SUBSCRIPTIONS_KV"
+id = "a93b710d9a8e4a22bb84a32025872866"
+preview_id = "a6bac6271d3a451697c2ad9c7dd0ec41"
