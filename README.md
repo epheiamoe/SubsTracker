@@ -4,6 +4,20 @@
 
 > 本项目 fork 自 [wangwangit/SubsTracker](https://github.com/wangwangit/SubsTracker)，并进行了一系列架构优化。
 
+## 与上游的差异
+
+| 项目 | 上游 (v2) | 本 fork (v3) |
+|------|-----------|-------------|
+| **前端架构** | 4 个独立 HTML 页面，Worker 每次拼接完整 HTML | **SPA** 单一 Shell + Hash 路由，首屏后零额外 HTML 请求 |
+| **PWA** | — | 可安装到桌面/主屏幕，Service Worker 离线缓存 |
+| **路由方式** | 服务端路由 (`/admin`, `/admin/dashboard`, `/admin/config`) | 客户端 Hash 路由 (`#login`, `#dashboard`, `#list`, `#config`) |
+| **CPU 效率** | 每次导航 ~15-20KB HTML 传输 + Worker CPU 拼接 | 视图懒加载，导航仅 API 调用，Worker CPU 消耗大幅降低 |
+| **安全加固** | JWT 鉴权，默认密码 `password` | + DO 登录限流、请求体大小限制、首次随机密码、Debug 脱敏 |
+| **限流方案** | — | Durable Object 强一致性计数器（非 KV 最终一致性） |
+| **仪表盘** | 月度/年度实付统计 | + **年化成本**统计卡（按周期换算全部活跃订阅的年化折合 CNY） |
+| **默认密码** | `admin` / `password` | `admin` / `crypto.randomUUID()` 随机生成 |
+| **视图加载** | Worker 每次返回完整 HTML | 首屏加载 ~70KB (gzip)，SW 缓存后为 0 |
+
 ---
 
 ## 架构
