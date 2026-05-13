@@ -1,5 +1,5 @@
 import { getAllSubscriptions } from '../../data/subscriptions.js';
-import { getDynamicRates, calculateMonthlyExpense, calculateYearlyExpense, getRecentPayments, getUpcomingRenewals, getExpenseByType, getExpenseByCategory } from '../../core/currency.js';
+import { getDynamicRates, calculateMonthlyExpense, calculateYearlyExpense, calculateAnnualizedExpense, getRecentPayments, getUpcomingRenewals, getExpenseByType, getExpenseByCategory } from '../../core/currency.js';
 import { getCurrentTimeInTimezone, MS_PER_DAY } from '../../core/time.js';
 
 async function handleDashboardStats(env, config) {
@@ -21,6 +21,7 @@ async function handleDashboardStats(env, config) {
     const rates = await getDynamicRates(env);
     const monthlyExpense = calculateMonthlyExpense(subscriptions, timezone, rates);
     const yearlyExpense = calculateYearlyExpense(subscriptions, timezone, rates);
+    const annualizedExpense = calculateAnnualizedExpense(subscriptions, rates);
     const recentPayments = getRecentPayments(subscriptions, timezone);
     const upcomingRenewals = getUpcomingRenewals(subscriptions, timezone);
     const expenseByType = getExpenseByType(subscriptions, timezone, rates);
@@ -40,6 +41,7 @@ async function handleDashboardStats(env, config) {
         data: {
           monthlyExpense,
           yearlyExpense,
+          annualizedExpense,
           activeSubscriptions: {
             active: activeSubscriptions.length,
             total: subscriptions.length,

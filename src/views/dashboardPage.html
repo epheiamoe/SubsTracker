@@ -141,7 +141,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" id="statsGrid">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6" id="statsGrid">
       <div class="loading-skeleton"></div>
       <div class="loading-skeleton"></div>
       <div class="loading-skeleton"></div>
@@ -344,18 +344,23 @@
 
         document.getElementById('statsGrid').innerHTML=`
           <div class="stat-card">
-            <div class="stat-card-header">月度支出 (CNY)</div>
+            <div class="stat-card-header">本月已付 (折合CNY)</div>
             <div class="stat-card-value">¥${data.monthlyExpense.amount.toFixed(2)}</div>
-            <div class="stat-card-subtitle">本月折合支出</div>
+            <div class="stat-card-subtitle">本月实际支付金额</div>
             <div class="stat-card-trend ${data.monthlyExpense.trendDirection}">
               <i class="fas fa-arrow-${data.monthlyExpense.trendDirection==='up'?'up':data.monthlyExpense.trendDirection==='down'?'down':'right'}"></i>
               ${data.monthlyExpense.trend}%
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-card-header">年度支出 (CNY)</div>
+            <div class="stat-card-header">本年已付 (折合CNY)</div>
             <div class="stat-card-value">¥${data.yearlyExpense.amount.toFixed(2)}</div>
             <div class="stat-card-subtitle">月均支出: ¥${data.yearlyExpense.monthlyAverage.toFixed(2)}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">年化成本 (折合CNY)</div>
+            <div class="stat-card-value">¥${data.annualizedExpense.amount.toFixed(2)}</div>
+            <div class="stat-card-subtitle">折合月均: ¥${data.annualizedExpense.monthlyEquivalent.toFixed(2)}</div>
           </div>
           <div class="stat-card">
             <div class="stat-card-header">活跃订阅</div>

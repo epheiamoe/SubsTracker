@@ -239,12 +239,38 @@ function getExpenseByCategory(subscriptions, timezone, rates) {
     .sort((a, b) => b.amount - a.amount);
 }
 
+function calculateAnnualizedExpense(subscriptions, rates) {
+  let total = 0;
+  subscriptions.forEach(sub => {
+    if (!sub.isActive) return;
+    const amount = Number(sub.amount);
+    if (!amount || amount <= 0) return;
+    const periodValue = Number(sub.periodValue) || 1;
+    const periodUnit = sub.periodUnit || 'month';
+
+    let annualMultiplier = 12;
+    if (periodUnit === 'day') {
+      annualMultiplier = 365 / periodValue;
+    } else if (periodUnit === 'month') {
+      annualMultiplier = 12 / periodValue;
+    } else if (periodUnit === 'year') {
+      annualMultiplier = 1 / periodValue;
+    }
+
+    total += convertToCNY(amount * annualMultiplier, sub.currency, rates);
+  });
+
+  const monthlyEquivalent = total / 12;
+  return { amount: total, monthlyEquivalent };
+}
+
 export {
   FALLBACK_RATES,
   getDynamicRates,
   convertToCNY,
   calculateMonthlyExpense,
   calculateYearlyExpense,
+  calculateAnnualizedExpense,
   getRecentPayments,
   getUpcomingRenewals,
   getExpenseByType,
