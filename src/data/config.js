@@ -44,15 +44,27 @@ async function getConfig(env) {
   }
   const data = await env.SUBSCRIPTIONS_KV.get('config');
   console.log('[配置] 从KV读取配置:', data ? '成功' : '空配置');
-  const config = data ? JSON.parse(data) : {};
+  let config = data ? JSON.parse(data) : {};
+  let needsSave = false;
 
-  let jwtSecret = config.JWT_SECRET;
-  if (!jwtSecret) {
+  if (!config.JWT_SECRET) {
     console.log('[配置] 生成新的JWT密钥');
-    jwtSecret = crypto.randomUUID();
-    const updatedConfig = { ...config, JWT_SECRET: jwtSecret };
-    await env.SUBSCRIPTIONS_KV.put('config', JSON.stringify(updatedConfig));
+    config = { ...config, JWT_SECRET: crypto.randomUUID() };
+    needsSave = true;
   }
+
+  if (!config.ADMIN_PASSWORD) {
+    const generated = crypto.randomUUID().slice(0, 12);
+    console.log('[配置] 首次部署，生成随机管理员密码');
+    config = { ...config, ADMIN_PASSWORD: generated };
+    needsSave = true;
+  }
+
+  if (needsSave) {
+    await env.SUBSCRIPTIONS_KV.put('config', JSON.stringify(config));
+  }
+
+  const jwtSecret = config.JWT_SECRET;
 
   return {
     ...DEFAULT_CONFIG,

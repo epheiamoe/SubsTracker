@@ -3,11 +3,24 @@ main = "src/index.js"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+routes = [
+  { pattern = "SubsTracker.epheia.moe/*", zone_id = "cc4d7d5845bc24f2b62286c5f80911cb" }
+]
+
 [env.production]
 name = "subscription-manager"
 
 [env.staging]
 name = "subscription-manager-staging"
+
+[durable_objects]
+bindings = [
+  { name = "RATE_LIMITER", class_name = "RateLimiterDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RateLimiterDO"]
 
 # KV 命名空间配置（默认模板不预设固定 ID，运行 npm run setup 自动生成）
 

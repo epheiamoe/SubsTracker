@@ -1,8 +1,22 @@
 import { generateJWT, verifyJWT } from '../../core/auth.js';
+import { checkRateLimit } from '../../core/rate-limiter.js';
 import { getConfig } from '../../data/config.js';
 import { getCookieValue } from '../utils.js';
 
+const LOGIN_RATE_LIMIT = 5;
+const LOGIN_RATE_WINDOW_MS = 60 * 1000;
+
 async function handleLogin(request, env) {
+  const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
+
+  const rateCheck = await checkRateLimit(env, 'login', clientIp, LOGIN_RATE_LIMIT, LOGIN_RATE_WINDOW_MS);
+  if (!rateCheck.allowed) {
+    return new Response(
+      JSON.stringify({ success: false, message: '请求过于频繁，请稍后再试' }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
   const config = await getConfig(env);
   const body = await request.json();
 

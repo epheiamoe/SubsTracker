@@ -9,9 +9,8 @@ async function handleDebug(request, env) {
       pathname: url.pathname,
       kvBinding: !!env.SUBSCRIPTIONS_KV,
       configExists: !!config,
-      adminUsername: config.ADMIN_USERNAME,
-      hasJwtSecret: !!config.JWT_SECRET,
-      jwtSecretLength: config.JWT_SECRET ? config.JWT_SECRET.length : 0
+      configKeysCount: config ? Object.keys(config).length : 0,
+      hasJwtSecret: !!config?.JWT_SECRET
     };
 
     return new Response(`
@@ -36,10 +35,10 @@ async function handleDebug(request, env) {
   </div>
 
   <div class="info">
-    <h3>配置信息</h3>
+    <h3>配置状态</h3>
     <p class="${debugInfo.configExists ? 'success' : 'error'}">配置存在: ${debugInfo.configExists ? '✓' : '✗'}</p>
-    <p>管理员用户名: ${debugInfo.adminUsername}</p>
-    <p class="${debugInfo.hasJwtSecret ? 'success' : 'error'}">JWT密钥: ${debugInfo.hasJwtSecret ? '✓' : '✗'} (长度: ${debugInfo.jwtSecretLength})</p>
+    <p>配置项数量: ${debugInfo.configKeysCount}</p>
+    <p class="${debugInfo.hasJwtSecret ? 'success' : 'error'}">JWT密钥已生成: ${debugInfo.hasJwtSecret ? '✓' : '✗'}</p>
   </div>
 
   <div class="info">
