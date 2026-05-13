@@ -4,6 +4,7 @@ import { handleDebug } from './api/debug.js';
 import { getCurrentTimeInTimezone } from './core/time.js';
 import { checkExpiringSubscriptions } from './services/scheduler.js';
 import { getUserFromRequest } from './api/handlers/auth.js';
+export { RateLimiterDO } from './core/rate-limiter.js';
 
 const MAX_BODY_SIZE = 1 * 1024 * 1024;
 
